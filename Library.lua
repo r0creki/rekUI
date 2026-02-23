@@ -4,10 +4,10 @@ local Passed, Statement = pcall(function()
 	local library = {
 		Renders = {},
 		Connections = {},
-		Folder = "PuppyWare", -- Change if wanted
-		Assets = "Assets", -- Change if wanted
-		Configs = "Configs", -- Change if wanted
-		Windows = {} -- Untuk tracking multiple windows
+		Folder = "Pevolution",
+		Assets = "Assets",
+		Configs = "Configs",
+		Windows = {}
 	}
 	local utility = {}
 	-- [[ // Tables // ]]
@@ -23,7 +23,6 @@ local Passed, Statement = pcall(function()
 	local tws = game:GetService("TweenService")
 	local uis = game:GetService("UserInputService")
 	local cre = game:GetService("CoreGui")
-	local rs = game:GetService("RunService")
 	
 	-- [[ // Anti Double UI // ]]
 	local function RemoveExistingWindows()
@@ -99,11 +98,11 @@ local Passed, Statement = pcall(function()
 			Pages = {},
 			Accent = Color3.fromRGB(255, 120, 30),
 			Enabled = true,
-			Key = Enum.KeyCode.Z,
-			MinSize = Vector2.new(400, 300),
-			MaxSize = Vector2.new(1920, 1080),
-			Dragging = {false, false, false, false}, -- drag, resize top, resize bottom, resize left, resize right
-			ResizeSensitivity = 10
+			ToggleKey = Properties.toggleKey or Enum.KeyCode.RightShift, -- Default RightShift
+			UnloadKey = Properties.unloadKey or Enum.KeyCode.RightShift, -- Default sama, nanti diatur di example
+			Dragging = false,
+			MinimizeKey = nil, -- Akan diisi dari example
+			UnloadKeyBind = nil -- Akan diisi dari example
 		}
 		
 		do
@@ -116,23 +115,23 @@ local Passed, Statement = pcall(function()
 				ZIndexBehavior = "Global"
 			})
 			
-			-- Main Frame (Dragable)
+			-- Main Frame
 			local ScreenGui_MainFrame = utility:RenderObject("Frame", {
-				AnchorPoint = Vector2.new(0, 0),
+				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundColor3 = Color3.fromRGB(25, 25, 25),
 				BackgroundTransparency = 0,
 				BorderColor3 = Color3.fromRGB(12, 12, 12),
 				BorderMode = "Inset",
 				BorderSizePixel = 1,
 				Parent = ScreenGui,
-				Position = UDim2.new(0.5, -330, 0.5, -280),
+				Position = UDim2.new(0.5, 0, 0.5, 0),
 				Size = UDim2.new(0, 660, 0, 560)
 			})
 			
-			-- Drag Handle (Top Bar)
+			-- Drag Handle (hanya di top bar)
 			local DragHandle = utility:RenderObject("Frame", {
 				BackgroundColor3 = Color3.fromRGB(25, 25, 25),
-				BackgroundTransparency = 1,
+				BackgroundTransparency = 0,
 				BorderColor3 = Color3.fromRGB(0, 0, 0),
 				BorderSizePixel = 0,
 				Parent = ScreenGui_MainFrame,
@@ -141,32 +140,20 @@ local Passed, Statement = pcall(function()
 				ZIndex = 10
 			})
 			
-			-- Resize Handles
-			local ResizeHandles = {}
-			local handlePositions = {
-				{Name = "Top", Position = UDim2.new(0, 0, 0, -3), Size = UDim2.new(1, 0, 0, 6), Cursor = "SizeNS"},
-				{Name = "Bottom", Position = UDim2.new(0, 0, 1, -3), Size = UDim2.new(1, 0, 0, 6), Cursor = "SizeNS"},
-				{Name = "Left", Position = UDim2.new(0, -3, 0, 0), Size = UDim2.new(0, 6, 1, 0), Cursor = "SizeWE"},
-				{Name = "Right", Position = UDim2.new(1, -3, 0, 0), Size = UDim2.new(0, 6, 1, 0), Cursor = "SizeWE"},
-				{Name = "TopLeft", Position = UDim2.new(0, -3, 0, -3), Size = UDim2.new(0, 6, 0, 6), Cursor = "SizeNWSE"},
-				{Name = "TopRight", Position = UDim2.new(1, -3, 0, -3), Size = UDim2.new(0, 6, 0, 6), Cursor = "SizeNESW"},
-				{Name = "BottomLeft", Position = UDim2.new(0, -3, 1, -3), Size = UDim2.new(0, 6, 0, 6), Cursor = "SizeNESW"},
-				{Name = "BottomRight", Position = UDim2.new(1, -3, 1, -3), Size = UDim2.new(0, 6, 0, 6), Cursor = "SizeNWSE"}
-			}
-			
-			for _, pos in ipairs(handlePositions) do
-				local handle = utility:RenderObject("Frame", {
-					BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-					BackgroundTransparency = 1,
-					BorderColor3 = Color3.fromRGB(0, 0, 0),
-					BorderSizePixel = 0,
-					Parent = ScreenGui_MainFrame,
-					Position = pos.Position,
-					Size = pos.Size,
-					ZIndex = 10
-				})
-				ResizeHandles[pos.Name] = handle
-			end
+			-- Tambahkan text di drag handle
+			local DragText = utility:RenderObject("TextLabel", {
+				BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+				BackgroundTransparency = 1,
+				BorderColor3 = Color3.fromRGB(0, 0, 0),
+				BorderSizePixel = 0,
+				Parent = DragHandle,
+				Size = UDim2.new(1, 0, 1, 0),
+				Font = "Code",
+				Text = "PuppyWare v1.0",
+				TextColor3 = Color3.fromRGB(255, 255, 255),
+				TextSize = 12,
+				TextXAlignment = "Center"
+			})
 			
 			-- [[ // Original UI Elements // ]]
 			local ScreenGui_MainFrame_InnerBorder = utility:RenderObject("Frame", {
@@ -284,139 +271,37 @@ local Passed, Statement = pcall(function()
 				TileSize = UDim2.new(0, 8, 0, 8)
 			})
 			
-			-- [[ // Drag and Resize Functions // ]]
-			local dragging = false
-			local dragStart
-			local startPos
-			
-			DragHandle.InputBegan:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1 then
-					dragging = true
-					dragStart = input.Position
-					startPos = ScreenGui_MainFrame.Position
-				end
-			end)
-			
-			uis.InputChanged:Connect(function(input)
-				if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-					local delta = input.Position - dragStart
-					ScreenGui_MainFrame.Position = UDim2.new(
-						startPos.X.Scale,
-						startPos.X.Offset + delta.X,
-						startPos.Y.Scale,
-						startPos.Y.Offset + delta.Y
-					)
-				end
-			end)
-			
-			uis.InputEnded:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1 then
-					dragging = false
-				end
-			end)
-			
-			local function startResize(direction)
-				if direction == "Top" then
-					Window.Dragging[2] = true
-				elseif direction == "Bottom" then
-					Window.Dragging[3] = true
-				elseif direction == "Left" then
-					Window.Dragging[4] = true
-				elseif direction == "Right" then
-					Window.Dragging[5] = true
-				elseif direction == "TopLeft" then
-					Window.Dragging[2] = true
-					Window.Dragging[4] = true
-				elseif direction == "TopRight" then
-					Window.Dragging[2] = true
-					Window.Dragging[5] = true
-				elseif direction == "BottomLeft" then
-					Window.Dragging[3] = true
-					Window.Dragging[4] = true
-				elseif direction == "BottomRight" then
-					Window.Dragging[3] = true
-					Window.Dragging[5] = true
-				end
-				Window.StartSize = ScreenGui_MainFrame.AbsoluteSize
-				Window.StartPos = ScreenGui_MainFrame.AbsolutePosition
-				Window.StartMouse = uis:GetMouseLocation()
+			-- [[ // Drag Function // ]]
+			local function startDrag()
+				Window.Dragging = true
+				local mousePos = uis:GetMouseLocation()
+				local objPos = ScreenGui_MainFrame.AbsolutePosition
+				Window.DragOffset = mousePos - objPos
 			end
 			
-			-- [[ // Connections for Drag and Resize // ]]
+			-- [[ // Connections for Drag // ]]
 			utility:CreateConnection(DragHandle.InputBegan, function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 then
 					startDrag()
 				end
 			end)
 			
-			for name, handle in pairs(ResizeHandles) do
-				utility:CreateConnection(handle.InputBegan, function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 then
-						startResize(name)
-					end
-				end)
-				
-				utility:CreateConnection(handle.MouseEnter, function()
-					uis.MouseIconBehavior = Enum.MouseIconBehavior.Custom
-				end)
-				
-				utility:CreateConnection(handle.MouseLeave, function()
-					uis.MouseIconBehavior = Enum.MouseIconBehavior.Default
-				end)
-			end
-			
 			utility:CreateConnection(uis.InputChanged, function(input)
-				if input.UserInputType == Enum.UserInputType.MouseMovement then
+				if input.UserInputType == Enum.UserInputType.MouseMovement and Window.Dragging and Window.DragOffset then
 					local mousePos = uis:GetMouseLocation()
-					
-					-- Dragging
-					if Window.Dragging[1] and Window.DragOffset then
-						local newPos = mousePos - Window.DragOffset
-						ScreenGui_MainFrame.Position = UDim2.new(0, newPos.X, 0, newPos.Y)
-					end
-					
-					-- Resizing
-					if Window.Dragging[2] or Window.Dragging[3] or Window.Dragging[4] or Window.Dragging[5] then
-						local delta = mousePos - Window.StartMouse
-						local newSize = Window.StartSize
-						local newPos = Window.StartPos
-						
-						-- Top resize
-						if Window.Dragging[2] then
-							newSize = Vector2.new(newSize.X, math.clamp(Window.StartSize.Y - delta.Y, Window.MinSize.Y, Window.MaxSize.Y))
-							newPos = Vector2.new(newPos.X, Window.StartPos.Y + (Window.StartSize.Y - newSize.Y))
-						end
-						
-						-- Bottom resize
-						if Window.Dragging[3] then
-							newSize = Vector2.new(newSize.X, math.clamp(Window.StartSize.Y + delta.Y, Window.MinSize.Y, Window.MaxSize.Y))
-						end
-						
-						-- Left resize
-						if Window.Dragging[4] then
-							newSize = Vector2.new(math.clamp(Window.StartSize.X - delta.X, Window.MinSize.X, Window.MaxSize.X), newSize.Y)
-							newPos = Vector2.new(Window.StartPos.X + (Window.StartSize.X - newSize.X), newPos.Y)
-						end
-						
-						-- Right resize
-						if Window.Dragging[5] then
-							newSize = Vector2.new(math.clamp(Window.StartSize.X + delta.X, Window.MinSize.X, Window.MaxSize.X), newSize.Y)
-						end
-						
-						ScreenGui_MainFrame.Position = UDim2.new(0, newPos.X, 0, newPos.Y)
-						ScreenGui_MainFrame.Size = UDim2.new(0, newSize.X, 0, newSize.Y)
-					end
+					local newPos = mousePos - Window.DragOffset
+					ScreenGui_MainFrame.Position = UDim2.new(0, newPos.X, 0, newPos.Y)
 				end
 			end)
 			
 			utility:CreateConnection(uis.InputEnded, function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 then
-					Window.Dragging = {false, false, false, false, false}
+					Window.Dragging = false
 					Window.DragOffset = nil
 				end
 			end)
 			
-			-- [[ // Original Window Functions // ]]
+			-- [[ // Window Functions // ]]
 			function Window:SetPage(Page)
 				for index, page in pairs(Window.Pages) do
 					if page.Open and page ~= Page then
@@ -472,16 +357,7 @@ local Passed, Statement = pcall(function()
 			Window["TabsHolder"] = InnerBorder_InnerFrame_Tabs
 			Window["PagesHolder"] = InnerBorder_InnerFrame_Folder
 			Window["MainFrame"] = ScreenGui_MainFrame
-			
-			-- [[ // Connections // ]]
-			utility:CreateConnection(uis.InputBegan, function(Input)
-				if Input.KeyCode and Input.KeyCode == Window.Key then
-					Window.Enabled = not Window.Enabled
-					Window:Fade(Window.Enabled)
-				elseif Input.KeyCode and Input.KeyCode == Enum.KeyCode.X then
-					Window:Unload()
-				end
-			end)
+			Window["ScreenGui"] = ScreenGui
 		end
 		
 		-- Tambahkan window ke list
@@ -490,6 +366,7 @@ local Passed, Statement = pcall(function()
 		return setmetatable(Window, library)
 	end
 	
+	-- [[ // Page Functions // ]]
 	function library:CreatePage(Properties)
 		Properties = Properties or {}
 		
@@ -507,7 +384,7 @@ local Passed, Statement = pcall(function()
 				BorderColor3 = Color3.fromRGB(0, 0, 0),
 				BorderSizePixel = 0,
 				Parent = Page.Window["TabsHolder"],
-				Size = UDim2.new(1, 0, 0.12, 0)
+				Size = UDim2.new(1, 0, 0, 72)
 			})
 			
 			local Page_Tab_Border = utility:RenderObject("Frame", {
@@ -523,14 +400,14 @@ local Passed, Statement = pcall(function()
 			})
 			
 			local Page_Tab_Image = utility:RenderObject("ImageLabel", {
-				AnchorPoint = Vector2.new(0, 0),
+				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 				BackgroundTransparency = 1,
 				BorderColor3 = Color3.fromRGB(0, 0, 0),
 				BorderSizePixel = 0,
 				Parent = Page_Tab,
-				Position = UDim2.new(0.5, -330, 0.5, -280),
-				Size = UDim2.new(0.6, 0, 0.6, 0),
+				Position = UDim2.new(0.5, 0, 0.5, 0),
+				Size = Page.Size,
 				ZIndex = 2,
 				Image = Page.Image,
 				ImageColor3 = Color3.fromRGB(100, 100, 100)
@@ -666,6 +543,7 @@ local Passed, Statement = pcall(function()
 		return setmetatable(Page, pages)
 	end
 	
+	-- [[ // Section Functions // ]]
 	function pages:CreateSection(Properties)
 		Properties = Properties or {}
 		
